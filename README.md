@@ -27,6 +27,9 @@ pedagogical and technological team on developing bots for the growing field of o
 and to see its social impact on tens of thousands of learners in Israel. 
 
 Recommended pre-requisite courses: 
+
 • 236369 - Managing Data On The World-wide Web (Recommended)
+
 • 236299 Intro. to Natural Language Processing (Recommended)
+
 • 236817 Seminar in Natural Language Processing (Recommended)
