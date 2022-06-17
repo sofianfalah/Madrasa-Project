@@ -191,7 +191,7 @@ def deleteMessageByThread(chat_id, message_id):
 
 
 def handlingAudioSegment(chat_id, counter):
-    file_path = os.path.join(os.getcwd(), "vocab.json")
+    file_path = os.path.join(os.getcwd(), "jsonFiles/vocab.json")
     f = open(file_path, encoding="utf8")
     data = json.load(f)
     text1 = data[counter]["arabic"] + " " + "[" + data[counter]["part_of_speech"] + "]"
@@ -210,11 +210,11 @@ def handlingSegments(chat_id, array_index, course_id):
     exercise_index = int(r.text)
     file_name = ""
     if course_id == course.mathilim.value:
-        file_name = "mathilim.json"
+        file_name = "jsonFiles/mathilim.json"
     elif course_id == course.mamshikhim.value:
-        file_name = "mamshikhim.json"
+        file_name = "jsonFiles/mamshikhim.json"
     elif course_id == course.refuit.value:
-        file_name = "refuit.json"
+        file_name = "jsonFiles/refuit.json"
     file_path = os.path.join(os.getcwd(), file_name)
     f = open(file_path, encoding="utf8")
     data = json.load(f)
@@ -331,7 +331,7 @@ def voice_handler(update, context):
             r = requests.post('http://127.0.0.1:5000/getCurrentUnit',
                               params={'chat_id': update.message.chat_id})
 
-            file_path = os.path.join(os.getcwd(), "vocab.json")
+            file_path = os.path.join(os.getcwd(), "jsonFiles/vocab.json")
             with open(file_path, encoding="utf8") as f:
                 data = json.load(f)
                 text2 = data[int(r.text)]["arabic_stt"]

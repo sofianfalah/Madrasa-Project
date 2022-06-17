@@ -7,7 +7,7 @@ import speech_recognition as sr
 
 if __name__ == '__main__':
     print("converting audio to text and updating json file: ")
-    with open("vocab.json", encoding="utf8") as f:
+    with open("../jsonFiles/vocab.json", encoding="utf8") as f:
         data = json.load(f)
         list_len = len(data)
         counter = 0
@@ -17,7 +17,7 @@ if __name__ == '__main__':
             counter += 1
             try:
                 audio_file = dict_audio["audio"]
-                filename = "voice.wav"
+                filename = "../voice.wav"
                 subprocess.call(['ffmpeg', '-i', audio_file,
                                  filename, '-y'])
                 # initialize the recognizer
@@ -32,6 +32,6 @@ if __name__ == '__main__':
             except sr.UnknownValueError as e:
                 dict_audio["arabic_text"] = "UnknownValueError"
 
-    with open("vocab.json", "w", encoding='utf8') as jsonFile:
+    with open("../jsonFiles/vocab.json", "w", encoding='utf8') as jsonFile:
         json.dump(data, jsonFile, ensure_ascii=False, indent=2)
 

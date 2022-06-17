@@ -105,13 +105,13 @@ def addpoint():
     user = User.query.filter_by(chat_id=request.args['chat_id']).first()
     course_id = user.current_course
     if course_id == course.mathilim.value:
-        file_name = "mathilim.json"
+        file_name = "jsonFiles/mathilim.json"
     elif course_id == course.mamshikhim.value:
-        file_name = "mamshikhim.json"
+        file_name = "jsonFiles/mamshikhim.json"
     elif course_id == course.refuit.value:
-        file_name = "refuit.json"
+        file_name = "jsonFiles/refuit.json"
     elif course_id == course.refuit.value:
-        file_name = "refuit.json"
+        file_name = "jsonFiles/refuit.json"
 
     new_list = user.correct_answers.copy()
     new_list[course_id] += 1
@@ -200,11 +200,11 @@ def updateCorrectAnswers():
     db.session.commit()
     if course_id != course.talkingWithMadrasa.value:
         if course_id == course.mathilim.value:
-            file_name = "mathilim.json"
+            file_name = "jsonFiles/mathilim.json"
         elif course_id == course.mamshikhim.value:
-            file_name = "mamshikhim.json"
+            file_name = "jsonFiles/mamshikhim.json"
         elif course_id == course.refuit.value:
-            file_name = "refuit.json"
+            file_name = "jsonFiles/refuit.json"
         file_path = os.path.join(os.getcwd(), file_name)
         f = open(file_path, encoding="utf8")
         data = json.load(f)

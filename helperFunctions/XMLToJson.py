@@ -222,7 +222,6 @@ def getChapterName(id_ref, course):
 
 
 if __name__ == '__main__':
-
     course_name = ""
     id_ref = [1]
     print("to parse mathilim course write: 1")
