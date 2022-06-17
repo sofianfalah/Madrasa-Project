@@ -278,30 +278,30 @@ def handlingSegments(chat_id, array_index, course_id):
 def button(update: Update, context: CallbackContext) -> None:
     """Parses the CallbackQuery and updates the message text."""
     query = update.callback_query
-
+    chat_id = query.from_user.id
     # CallbackQueries need to be answered, even if no notification to the user is needed
     if query.data == "talkingWithMadrasa":
         r = requests.post('http://127.0.0.1:5000/userNewCourse',
-                          params={'chat_id': query.from_user.id, 'course_id': course.talkingWithMadrasa.value})
-        handlingAudioSegment(query.from_user.id, int(r.text))
+                          params={'chat_id': chat_id, 'course_id': course.talkingWithMadrasa.value})
+        handlingAudioSegment(chat_id, int(r.text))
         query.answer('תשובתך נשמרה')
         query.edit_message_text("בקורס הזה תקבלו מילים בערבית ותתרגלו את ההגיה דרך שליחת הקלטות לבוט")
     elif query.data == "mathilim":
         r = requests.post('http://127.0.0.1:5000/userNewCourse',
                           params={'chat_id': query.from_user.id, 'course_id': course.mathilim.value})
-        handlingSegments(query.from_user.id, int(r.text), course.mathilim.value)
+        handlingSegments(chat_id, int(r.text), course.mathilim.value)
         query.answer('תשובתך נשמרה')
         query.delete_message()
     elif query.data == "mamshikhim":
         r = requests.post('http://127.0.0.1:5000/userNewCourse',
                           params={'chat_id': query.from_user.id, 'course_id': course.mamshikhim.value})
-        handlingSegments(query.from_user.id, int(r.text), course.mamshikhim.value)
+        handlingSegments(chat_id, int(r.text), course.mamshikhim.value)
         query.answer('תשובתך נשמרה')
         query.delete_message()
     elif query.data == "refuit":
         r = requests.post('http://127.0.0.1:5000/userNewCourse',
                           params={'chat_id': query.from_user.id, 'course_id': course.refuit.value})
-        handlingSegments(query.from_user.id, int(r.text), course.refuit.value)
+        handlingSegments(chat_id, int(r.text), course.refuit.value)
         query.answer('תשובתך נשמרה')
         query.delete_message()
 
