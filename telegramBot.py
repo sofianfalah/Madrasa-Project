@@ -198,7 +198,7 @@ def handlingAudioSegment(chat_id, counter):
     text2 = "משמעות " + data[counter]["arabic"] + " בעברית: " + data[counter]["hebrew"]
     text3 = "נא לשלוח הקלטה של הביטוי: " + data[counter]["arabic"]
     text = text1 + '\n' + text2 + '\n' + text3
-    mes = bot.sendAudio(chat_id, data[counter]["audio"], caption=text)
+    mes = bot.sendAudio(chat_id=chat_id, audio=data[counter]["audio"], caption=text)
     t1 = threading.Thread(target=deleteMessageByThread, args=(chat_id, mes.message_id,))
     t1.start()
     f.close()

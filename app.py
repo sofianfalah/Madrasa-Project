@@ -96,6 +96,9 @@ def receivePollAnswer():
 #         print(inst)
 #     return 'ok'
 
+@app.route('/favicon.ico')
+def favicon():
+    return 'favicon.ico'
 
 @app.route("/addpoint", methods=['POST'])
 def addpoint():
