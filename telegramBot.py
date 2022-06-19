@@ -210,7 +210,11 @@ def handlingAudioSegment(chat_id, counter):
     text2 = "משמעות " + data[counter]["arabic"] + " בעברית: " + data[counter]["hebrew"]
     text3 = "נא לשלוח הקלטה של הביטוי: " + data[counter]["arabic"]
     text = text1 + '\n' + text2 + '\n' + text3
-    mes = bot.sendAudio(chat_id=chat_id, audio=data[counter]["audio"], caption=text)
+    reply_keyboard = [['/previousUnit', '/skipUnit']]
+    repp = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+    mes = bot.sendAudio(chat_id=chat_id, audio=data[counter]["audio"],
+                        caption=text, reply_markup=repp)
+
     messageToDelete(chat_id, mes.message_id)
     print("message added to db, message_id = ", mes.message_id)
     # t1 = threading.Thread(target=deleteMessageByThread, args=(chat_id, mes.message_id,))
@@ -301,6 +305,7 @@ def button(update: Update, context: CallbackContext) -> None:
                           params={'chat_id': chat_id, 'course_id': course.talkingWithMadrasa.value})
         handlingAudioSegment(chat_id, int(r.text))
         query.answer('תשובתך נשמרה')
+
         query.edit_message_text("בקורס הזה תקבלו מילים בערבית ותתרגלו את ההגיה דרך שליחת הקלטות לבוט")
     elif query.data == "mathilim":
         r = requests.post('http://127.0.0.1:5000/userNewCourse',
@@ -403,6 +408,47 @@ def rec_poll_answer(update: Update, context: CallbackContext) -> None:
                                 sticker="https://raw.githubusercontent.com/LenaHelo/stickers/main/y3ni_3lk.webp")
 
 
+
+def previous_unit(update: Update, context: CallbackContext) -> None:
+    res = requests.post('http://127.0.0.1:5000/previousUnit',
+                      params={'chat_id': update.message.chat_id})
+    if res.text == 'FAILED':
+        update.message.reply_text('את/ה נמצא ביחידה הראשונה, אי אפשר לחזור אחורה! נא להקליט בבקשה')
+    else:
+        requests.delete('http://127.0.0.1:5000/DeleteAudioMessages',
+                        params={'chat_id': update.message.chat_id})
+
+        r = requests.post('http://127.0.0.1:5000/getCurrentUnit',
+                          params={'chat_id': update.message.chat_id})
+        curr_unit = int(r.text)
+        r = requests.post('http://127.0.0.1:5000/getCurrentCourse',
+                          params={'chat_id': update.message.chat_id})
+        curr_course = int(r.text)
+        if curr_course == course.talkingWithMadrasa.value:
+            handlingAudioSegment(update.message.chat_id, curr_unit)
+        else:
+            handlingSegments(update.message.chat_id, curr_unit, curr_course)
+
+
+def skip_unit(update: Update, context: CallbackContext) -> None:
+    res = requests.post('http://127.0.0.1:5000/skipUnit',
+                        params={'chat_id': update.message.chat_id})
+    requests.delete('http://127.0.0.1:5000/DeleteAudioMessages',
+                    params={'chat_id': update.message.chat_id})
+
+    r = requests.post('http://127.0.0.1:5000/getCurrentUnit',
+                      params={'chat_id': update.message.chat_id})
+    curr_unit = int(r.text)
+    r = requests.post('http://127.0.0.1:5000/getCurrentCourse',
+                      params={'chat_id': update.message.chat_id})
+    curr_course = int(r.text)
+    if curr_course == course.talkingWithMadrasa.value:
+        handlingAudioSegment(update.message.chat_id, curr_unit)
+    else:
+        handlingSegments(update.message.chat_id, curr_unit, curr_course)
+
+
+
 def main() -> None:
     """Start the bot."""
     # Create the Updater and pass it your bot's token.
@@ -416,6 +462,8 @@ def main() -> None:
     updater.dispatcher.add_handler(CommandHandler("nextUnit", next_unit))
     updater.dispatcher.add_handler(CommandHandler("startExercising", next_unit))
     updater.dispatcher.add_handler(CommandHandler("feedback", get_feedback))
+    updater.dispatcher.add_handler(CommandHandler("previousUnit", previous_unit))
+    updater.dispatcher.add_handler(CommandHandler("skipUnit", skip_unit))
     updater.dispatcher.add_handler(CallbackQueryHandler(button))
     updater.dispatcher.add_handler(PollAnswerHandler(rec_poll_answer))
     updater.dispatcher.add_handler(MessageHandler(Filters.voice, voice_handler))

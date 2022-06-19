@@ -191,6 +191,43 @@ def userNextUnit():
     return str(user.unit_index[course_id])
 
 
+@app.route("/previousUnit", methods=['POST'])
+def previousUnit():
+    user = User.query.filter_by(chat_id=request.args['chat_id']).first()
+    course_id = user.current_course
+    new_list = user.unit_index.copy()
+    if new_list[course_id] == 0:
+        return 'FAILED'
+    if course_id != course.talkingWithMadrasa.value:
+        exercise_list = user.exercise_index.copy()
+        exercise_list[course_id] = -1
+        user.exercise_index = exercise_list
+        db.session.commit()
+    new_list[course_id] -= 1
+    user.unit_index = new_list
+    db.session.commit()
+    return 'SUCCESS'
+
+
+@app.route("/skipUnit", methods=['POST'])
+def skipUnit():
+    user = User.query.filter_by(chat_id=request.args['chat_id']).first()
+    course_id = user.current_course
+    new_list = user.unit_index.copy()
+    # if new_list[course_id] == len(course1),len(course2): #TODO check the end of courses
+    #     return 'FAILED'
+
+    if course_id != course.talkingWithMadrasa.value:
+        exercise_list = user.exercise_index.copy()
+        exercise_list[course_id] = -1
+        user.exercise_index = exercise_list
+        db.session.commit()
+    new_list[course_id] += 1
+    user.unit_index = new_list
+    db.session.commit()
+    return 'SUCCESS'
+
+
 @app.route("/updateCorrectAnswers", methods=['POST'])
 def updateCorrectAnswers():
     user = User.query.filter_by(chat_id=request.args['chat_id']).first()
