@@ -42,7 +42,8 @@ class course(Enum):
 
 def start(update: Update, context: CallbackContext) -> None:
     """Send a message when the command /start is issued."""
-
+    r = requests.delete('http://127.0.0.1:5000/DeleteAudioMessages',
+                        params={'chat_id': update.message.chat_id})
     r = requests.post('http://127.0.0.1:5000/userExists',
                       params={'chat_id': update.message.chat_id})
     if r.text == 'Does Not Exist':
@@ -147,28 +148,34 @@ def exercises(update: Update, context: CallbackContext) -> None:
 
 
 def next_exercise(update: Update, context: CallbackContext) -> None:
+    requests.delete('http://127.0.0.1:5000/DeleteAudioMessages',
+                    params={'chat_id': update.message.chat_id})
+
     r = requests.post('http://127.0.0.1:5000/getCurrentUnit',
                       params={'chat_id': update.message.chat_id})
     curr_unit = int(r.text)
     r = requests.post('http://127.0.0.1:5000/getCurrentCourse',
                       params={'chat_id': update.message.chat_id})
     curr_course = int(r.text)
-    if(curr_course == course.talkingWithMadrasa.value):
+    if curr_course == course.talkingWithMadrasa.value:
         handlingAudioSegment(update.message.chat_id, curr_unit)
     else:
-        handlingSegments(update.message.chat_id,curr_unit, curr_course)
+        handlingSegments(update.message.chat_id, curr_unit, curr_course)
 
     # TODO: check course_id + handlingSegments()
 
+
 def next_unit(update: Update, context: CallbackContext) -> None:
+    r = requests.delete('http://127.0.0.1:5000/DeleteAudioMessages',
+                    params={'chat_id': update.message.chat_id})
+    print(r.text)
     r = requests.post('http://127.0.0.1:5000/getCurrentUnit',
                       params={'chat_id': update.message.chat_id})
     curr_unit = int(r.text)
-    r= requests.post('http://127.0.0.1:5000/getCurrentCourse',
+    r = requests.post('http://127.0.0.1:5000/getCurrentCourse',
                       params={'chat_id': update.message.chat_id})
     curr_course = int(r.text)
-    handlingSegments(update.message.chat_id, curr_unit , curr_course)
-
+    handlingSegments(update.message.chat_id, curr_unit, curr_course)
 
 
 def get_feedback(update: Update, context: CallbackContext) -> None:
@@ -186,9 +193,14 @@ def otherMessages(update: Update, context: CallbackContext) -> None:
 
 
 def deleteMessageByThread(chat_id, message_id):
-    time.sleep(30)
+    time.sleep(50)
     bot.deleteMessage(chat_id, message_id)
 
+
+def messageToDelete(chat_id, message_id):
+    response = requests.post('http://127.0.0.1:5000/addMessageToDelete',
+                  params={'chat_id': chat_id, 'message_id': message_id})
+    print(response.text)
 
 def handlingAudioSegment(chat_id, counter):
     file_path = os.path.join(os.getcwd(), "jsonFiles/vocab.json")
@@ -199,8 +211,10 @@ def handlingAudioSegment(chat_id, counter):
     text3 = "נא לשלוח הקלטה של הביטוי: " + data[counter]["arabic"]
     text = text1 + '\n' + text2 + '\n' + text3
     mes = bot.sendAudio(chat_id=chat_id, audio=data[counter]["audio"], caption=text)
-    t1 = threading.Thread(target=deleteMessageByThread, args=(chat_id, mes.message_id,))
-    t1.start()
+    messageToDelete(chat_id, mes.message_id)
+    print("message added to db, message_id = ", mes.message_id)
+    # t1 = threading.Thread(target=deleteMessageByThread, args=(chat_id, mes.message_id,))
+    # t1.start()
     f.close()
 
 
@@ -218,9 +232,10 @@ def handlingSegments(chat_id, array_index, course_id):
     file_path = os.path.join(os.getcwd(), file_name)
     f = open(file_path, encoding="utf8")
     data = json.load(f)
-    #TODO: a5r json blmlf
+    # TODO: a5r json blmlf
     if exercise_index == -1:
-        text1 = "שיעור מספר " + str(data[array_index]["Lesson"]) + ", יחידה מספר " + str(data[array_index]["unit"]) + "\n";
+        text1 = "שיעור מספר " + str(data[array_index]["Lesson"]) + ", יחידה מספר " + str(
+            data[array_index]["unit"]) + "\n";
         text2 = data[array_index]["Title"] + "\n"
         bot.sendMessage(chat_id, text1 + text2)
         if data[array_index]["videoURL"] != "":
@@ -231,15 +246,15 @@ def handlingSegments(chat_id, array_index, course_id):
                           params={'chat_id': chat_id})
             reply_keyboard = [['/nextUnit', '/start']]
             repp = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
-            bot.sendMessage(chat_id,'nextUnit - ' + 'המשך' + '\n', reply_markup=repp)
+            bot.sendMessage(chat_id, 'nextUnit - ' + 'המשך' + '\n', reply_markup=repp)
         else:
             requests.post('http://127.0.0.1:5000/userNextExercise',
                           params={'chat_id': chat_id})
             reply_keyboard = [['/startExercising', '/start']]
             repp = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
-            bot.sendMessage(chat_id,'startExercising - ' + 'התחל' + '\n', reply_markup=repp)
+            bot.sendMessage(chat_id, 'startExercising - ' + 'התחל' + '\n', reply_markup=repp)
             bot.sendSticker(chat_id=chat_id,
-                                    sticker="https://raw.githubusercontent.com/LenaHelo/stickers/main/bnjh.webp")
+                            sticker="https://raw.githubusercontent.com/LenaHelo/stickers/main/bnjh.webp")
 
 
     else:
@@ -249,8 +264,9 @@ def handlingSegments(chat_id, array_index, course_id):
                 bot.sendMessage(chat_id, problem_dict["title"])
             if "audio" in problem_dict:
                 mes = bot.sendAudio(chat_id, problem_dict["audio"])
-                t1 = threading.Thread(target=deleteMessageByThread, args=(chat_id, mes.message_id,))
-                t1.start()
+                messageToDelete(chat_id, mes.message_id)
+                # t1 = threading.Thread(target=deleteMessageByThread, args=(chat_id, mes.message_id,))
+                # t1.start()
             bot.send_poll(chat_id, problem_dict['text'], problem_dict['answers'], is_anonymous=False,
                           type="quiz", allows_multiple_answers=False, correct_option_id=problem_dict["correct"][0])
         else:
@@ -353,7 +369,7 @@ def voice_handler(update, context):
                                         sticker="https://raw.githubusercontent.com/LenaHelo/stickers/main/bzbt.webp")
 
                 requests.post('http://127.0.0.1:5000/updateCorrectAnswers',
-                              params={'chat_id': update.message.chat_id,'selected_option': 1})
+                              params={'chat_id': update.message.chat_id, 'selected_option': 1})
             requests.post('http://127.0.0.1:5000/userNextUnit',
                           params={'chat_id': update.message.chat_id})
             text1 = text1 + "\n\n" + reply_text
@@ -372,8 +388,8 @@ def rec_poll_answer(update: Update, context: CallbackContext) -> None:
     """Echo the user message."""
     answer = update.poll_answer
 
-    r=requests.post('http://127.0.0.1:5000/updateCorrectAnswers',
-                  params={'chat_id': answer.user.id,'selected_option': answer.option_ids[0]})
+    r = requests.post('http://127.0.0.1:5000/updateCorrectAnswers',
+                      params={'chat_id': answer.user.id, 'selected_option': answer.option_ids[0]})
     print(r.text)
     # url = 'http://localhost:5000/receivePollAnswer'
     # myobj = {'chat_id': answer.user.id,

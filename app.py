@@ -1,4 +1,3 @@
-
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import exc, create_engine, MetaData
@@ -23,7 +22,6 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_DATABASE_URI'] = config.postgresLink
 db = SQLAlchemy(app)
 metadata = MetaData(bind=engine)
-
 
 global bot
 
@@ -100,6 +98,7 @@ def receivePollAnswer():
 def favicon():
     return 'favicon.ico'
 
+
 @app.route("/addpoint", methods=['POST'])
 def addpoint():
     user = User.query.filter_by(chat_id=request.args['chat_id']).first()
@@ -120,7 +119,6 @@ def addpoint():
     return str(user.correct_answers[course_id])
 
 
-
 @app.route("/userExists", methods=['POST'])
 def userExists():
     arr = User.query.filter_by(chat_id=request.args['chat_id']).all()
@@ -128,12 +126,14 @@ def userExists():
         return 'Does Not Exist'
     return 'Exists'
 
+
 @app.route("/getExerciseIndex", methods=['POST'])
 def getExerciseIndex():
     user = User.query.filter_by(chat_id=request.args['chat_id']).first()
     course_id = user.current_course
     exercise_ind = user.exercise_index[course_id]
     return str(exercise_ind)
+
 
 @app.route("/getCurrentCourse", methods=['POST'])
 def getCurrentCourse():
@@ -157,6 +157,7 @@ def userNewCourse():
     db.session.commit()
     return str(user.unit_index[course_id])
 
+
 @app.route("/userNextExercise", methods=['POST'])
 def userNextExercise():
     user = User.query.filter_by(chat_id=request.args['chat_id']).first()
@@ -167,6 +168,7 @@ def userNextExercise():
     db.session.commit()
     return str(user.exercise_index[course_id])
 
+
 @app.route("/userResetExerciseNum", methods=['POST'])
 def userResetExerciseNum():
     user = User.query.filter_by(chat_id=request.args['chat_id']).first()
@@ -176,6 +178,7 @@ def userResetExerciseNum():
     user.exercise_index = new_list
     db.session.commit()
     return str(user.exercise_index[course_id])
+
 
 @app.route("/userNextUnit", methods=['POST'])
 def userNextUnit():
@@ -194,7 +197,7 @@ def updateCorrectAnswers():
     course_id = user.current_course
 
     answers_list = user.total_answers.copy()
-    print("total answers: ",answers_list[course_id])
+    print("total answers: ", answers_list[course_id])
     answers_list[course_id] += 1
     user.total_answers = answers_list
     db.session.commit()
@@ -208,16 +211,17 @@ def updateCorrectAnswers():
         file_path = os.path.join(os.getcwd(), file_name)
         f = open(file_path, encoding="utf8")
         data = json.load(f)
-        print("course_id",course_id)
+        print("course_id", course_id)
 
-        correct_ans = data[user.unit_index[course_id]]["exercises"][user.exercise_index[course_id]-1]["correct"][0]
+        correct_ans = data[user.unit_index[course_id]]["exercises"][user.exercise_index[course_id] - 1]["correct"][0]
         f.close()
         print("int(correct_ans): ", int(correct_ans))
         print("int(request.args['selected_option']:", int(request.args['selected_option']))
 
         if int(correct_ans) != int(request.args['selected_option']):
             return "wrong answer"
-    if (course_id == course.talkingWithMadrasa.value and int(request.args['selected_option'])==1) or (course_id != course.talkingWithMadrasa.value):
+    if (course_id == course.talkingWithMadrasa.value and int(request.args['selected_option']) == 1) or (
+            course_id != course.talkingWithMadrasa.value):
         new_list = user.correct_answers.copy()
         new_list[course_id] += 1
         user.correct_answers = new_list
@@ -225,19 +229,20 @@ def updateCorrectAnswers():
         return 'right answer'
     return "wrong answer"
 
+
 @app.route("/users", methods=['POST'])
 def registerUser():
     try:
-        correct_ans_list = [0]*4
-        total_ans_list = [0]*4
-        unit_index_list = [0]*4
-        exercise_ind = [-1]*3
+        correct_ans_list = [0] * 4
+        total_ans_list = [0] * 4
+        unit_index_list = [0] * 4
+        exercise_ind = [-1] * 3
         new_user = User(chat_id=request.args['chat_id'],
-                        username=request.args['username'], current_course = 0,
-                        correct_answers = correct_ans_list,
-                        total_answers = total_ans_list,
-                        unit_index = unit_index_list,
-                        exercise_index = exercise_ind)
+                        username=request.args['username'], current_course=0,
+                        correct_answers=correct_ans_list,
+                        total_answers=total_ans_list,
+                        unit_index=unit_index_list,
+                        exercise_index=exercise_ind)
 
         db.session.add(new_user)
         db.session.commit()
@@ -258,6 +263,38 @@ def deleteUser():
     return 'You were successfully removed from our system.'
 
 
+@app.route("/DeleteAudioMessages", methods=['DELETE'])
+def DeleteAudioMessages():
+    lst = AudioMessages.query.filter_by(chat_id = request.args['chat_id']).all()
+    if len(lst) == 0:
+        return 'there is no messages to delete'
+    if len(lst) > 1:
+        for message in lst:
+            bot.deleteMessage(chat_id=message.chat_id, message_id=message.message_id)
+            db.session.delete(message)
+            db.session.commit()
+    else:
+        message = AudioMessages.query.filter_by(chat_id=request.args['chat_id']).first()
+        bot.deleteMessage(chat_id=message.chat_id, message_id=message.message_id)
+        db.session.delete(message)
+        db.session.commit()
+    return 'deleted'
+
+
+
+@app.route("/addMessageToDelete", methods=['POST'])
+def addMessageToDelete():
+    try:
+        mes = AudioMessages(chat_id=request.args['chat_id'],
+                            message_id=request.args['message_id'])
+        db.session.add(mes)
+        db.session.commit()
+        return 'message successfully added'
+    except exc.IntegrityError:
+        db.session.rollback()
+        return 'message already exist'
+
+
 class User(db.Model):
     __tablename__ = 'users'
     chat_id = db.Column(db.BigInteger, primary_key=True, nullable=False)
@@ -267,16 +304,19 @@ class User(db.Model):
     total_answers = db.Column(db.ARRAY(db.Integer), nullable=False)
     unit_index = db.Column(db.ARRAY(db.Integer), nullable=False)
     exercise_index = db.Column(db.ARRAY(db.Integer), nullable=False)
+    children = relationship("AudioMessages", cascade="all,delete", backref="users")
 
 
+class AudioMessages(db.Model):
+    __tablename__ = 'AudioMessages'
+    chat_id = db.Column(db.BigInteger, ForeignKey(User.chat_id), nullable=False)
+    message_id = db.Column(db.BigInteger, primary_key=True, nullable=False)
 
 
 # db.drop_all()
 # db.session.commit()
 db.create_all()
 db.session.commit()
-
-
 
 if __name__ == '__main__':
     app.run()
