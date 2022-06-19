@@ -4,6 +4,7 @@ from telegram import Update, ParseMode, InlineKeyboardButton, InlineKeyboardMark
     ReplyKeyboardRemove
 from telegram.ext import PollAnswerHandler, Updater, CommandHandler, CallbackQueryHandler, CallbackContext, \
     MessageHandler, Filters
+from telegram.bot import BotCommand
 
 import logging
 import requests
@@ -16,7 +17,6 @@ import json
 from Levenshtein import distance as lev
 import os
 import time
-import threading
 from enum import Enum
 
 global bot
@@ -32,6 +32,7 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+audio_flag = False
 
 class course(Enum):
     mathilim = 0
@@ -167,7 +168,7 @@ def next_exercise(update: Update, context: CallbackContext) -> None:
 
 def next_unit(update: Update, context: CallbackContext) -> None:
     r = requests.delete('http://127.0.0.1:5000/DeleteAudioMessages',
-                    params={'chat_id': update.message.chat_id})
+                        params={'chat_id': update.message.chat_id})
     print(r.text)
     r = requests.post('http://127.0.0.1:5000/getCurrentUnit',
                       params={'chat_id': update.message.chat_id})
@@ -192,17 +193,16 @@ def otherMessages(update: Update, context: CallbackContext) -> None:
     update.message.reply_text('לא הבנתי מה ששלחת ', reply_markup=rep)
 
 
-def deleteMessageByThread(chat_id, message_id):
-    time.sleep(50)
-    bot.deleteMessage(chat_id, message_id)
-
-
 def messageToDelete(chat_id, message_id):
     response = requests.post('http://127.0.0.1:5000/addMessageToDelete',
-                  params={'chat_id': chat_id, 'message_id': message_id})
+                             params={'chat_id': chat_id, 'message_id': message_id})
     print(response.text)
 
+
 def handlingAudioSegment(chat_id, counter):
+    if counter == 0:
+        bot.sendMessage(chat_id, "בקורס הזה תקבלו מילים בערבית ותתרגלו את ההגיה דרך שליחת הקלטות לבוט")
+    global audio_flag
     file_path = os.path.join(os.getcwd(), "jsonFiles/vocab.json")
     f = open(file_path, encoding="utf8")
     data = json.load(f)
@@ -212,14 +212,18 @@ def handlingAudioSegment(chat_id, counter):
     text = text1 + '\n' + text2 + '\n' + text3
     reply_keyboard = [['/previousUnit', '/skipUnit']]
     repp = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
-    mes = bot.sendAudio(chat_id=chat_id, audio=data[counter]["audio"],
-                        caption=text, reply_markup=repp)
+    try:
+        mes = bot.sendAudio(chat_id=chat_id, audio=data[counter]["audio"],
+                            caption=text, reply_markup=repp)
+        audio_flag = True
+        messageToDelete(chat_id, mes.message_id)
+        print("message added to db, message_id = ", mes.message_id)
 
-    messageToDelete(chat_id, mes.message_id)
-    print("message added to db, message_id = ", mes.message_id)
-    # t1 = threading.Thread(target=deleteMessageByThread, args=(chat_id, mes.message_id,))
-    # t1.start()
-    f.close()
+    except telegram.error.BadRequest as e:
+        print(e)
+        bot.sendMessage(chat_id,'שגיאת התחברות לאינטרנט, נא לחזור על הפעולה שוב',reply_markup=repp)
+    finally:
+        f.close()
 
 
 def handlingSegments(chat_id, array_index, course_id):
@@ -269,8 +273,6 @@ def handlingSegments(chat_id, array_index, course_id):
             if "audio" in problem_dict:
                 mes = bot.sendAudio(chat_id, problem_dict["audio"])
                 messageToDelete(chat_id, mes.message_id)
-                # t1 = threading.Thread(target=deleteMessageByThread, args=(chat_id, mes.message_id,))
-                # t1.start()
             bot.send_poll(chat_id, problem_dict['text'], problem_dict['answers'], is_anonymous=False,
                           type="quiz", allows_multiple_answers=False, correct_option_id=problem_dict["correct"][0])
         else:
@@ -303,10 +305,17 @@ def button(update: Update, context: CallbackContext) -> None:
     if query.data == "talkingWithMadrasa":
         r = requests.post('http://127.0.0.1:5000/userNewCourse',
                           params={'chat_id': chat_id, 'course_id': course.talkingWithMadrasa.value})
-        handlingAudioSegment(chat_id, int(r.text))
+        curr_unit = int(r.text)
         query.answer('תשובתך נשמרה')
-
-        query.edit_message_text("בקורס הזה תקבלו מילים בערבית ותתרגלו את ההגיה דרך שליחת הקלטות לבוט")
+        query.delete_message()
+        if curr_unit > 0:
+            reply_keyboard = [['/resume', '/startAgain']]
+            repp = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+            text1 = 'resume - ' + 'להמשיך את התרגיל מאיפה שעצרת בפעם אחרונה ' + '\n\n'
+            text2 = 'startAgain - ' + 'להתחיל את התרגיל מחדש'
+            bot.sendMessage(chat_id, text1 + text2, reply_markup=repp)
+        else:
+            handlingAudioSegment(chat_id, curr_unit)
     elif query.data == "mathilim":
         r = requests.post('http://127.0.0.1:5000/userNewCourse',
                           params={'chat_id': query.from_user.id, 'course_id': course.mathilim.value})
@@ -327,9 +336,12 @@ def button(update: Update, context: CallbackContext) -> None:
         query.delete_message()
 
 
+
 def voice_handler(update, context):
     try:
+        global audio_flag
         bot = context.bot
+
         file = bot.getFile(update.message.voice.file_id)
 
         file.download('voice.mp3')
@@ -348,7 +360,10 @@ def voice_handler(update, context):
             # recognize (convert from speech to text)
             text = r.recognize_google(audio_data, language='ar-AR')
             text1 = "הביטוי שאמרת: " + text
-
+            if audio_flag == False:
+                bot.sendMessage(update.message.chat_id, "הביטוי שאמרת: " + '\n\n' + text)
+                return 'speechToText'
+            audio_flag = False
             r = requests.post('http://127.0.0.1:5000/getCurrentUnit',
                               params={'chat_id': update.message.chat_id})
 
@@ -408,10 +423,9 @@ def rec_poll_answer(update: Update, context: CallbackContext) -> None:
                                 sticker="https://raw.githubusercontent.com/LenaHelo/stickers/main/y3ni_3lk.webp")
 
 
-
 def previous_unit(update: Update, context: CallbackContext) -> None:
     res = requests.post('http://127.0.0.1:5000/previousUnit',
-                      params={'chat_id': update.message.chat_id})
+                        params={'chat_id': update.message.chat_id})
     if res.text == 'FAILED':
         update.message.reply_text('את/ה נמצא ביחידה הראשונה, אי אפשר לחזור אחורה! נא להקליט בבקשה')
     else:
@@ -448,11 +462,27 @@ def skip_unit(update: Update, context: CallbackContext) -> None:
         handlingSegments(update.message.chat_id, curr_unit, curr_course)
 
 
+def resume(update: Update, context: CallbackContext) -> None:
+    r = requests.post('http://127.0.0.1:5000/getCurrentUnit',
+                      params={'chat_id': update.message.chat_id})
+    curr_unit = int(r.text)
+    handlingAudioSegment(update.message.chat_id, curr_unit)
+
+
+def start_again(update: Update, context: CallbackContext) -> None:
+    r = requests.post('http://127.0.0.1:5000/resetUnit',
+                      params={'chat_id': update.message.chat_id})
+    curr_unit = int(r.text)
+    handlingAudioSegment(update.message.chat_id, curr_unit)
 
 def main() -> None:
     """Start the bot."""
     # Create the Updater and pass it your bot's token.
-
+    command = [BotCommand("start", "תפריט התחלה"),
+               BotCommand("exercises", "להתחיל לתרגל"),
+               BotCommand("register", "הרשמה במערכת"),
+               BotCommand("remove", "ביטול רישום")]
+    bot.set_my_commands(command)
     # on different commands - answer in Telegram
     updater.dispatcher.add_handler(CommandHandler("start", start))
     updater.dispatcher.add_handler(CommandHandler("register", register_command))
@@ -464,6 +494,8 @@ def main() -> None:
     updater.dispatcher.add_handler(CommandHandler("feedback", get_feedback))
     updater.dispatcher.add_handler(CommandHandler("previousUnit", previous_unit))
     updater.dispatcher.add_handler(CommandHandler("skipUnit", skip_unit))
+    updater.dispatcher.add_handler(CommandHandler("resume", resume))
+    updater.dispatcher.add_handler(CommandHandler("startAgain", start_again))
     updater.dispatcher.add_handler(CallbackQueryHandler(button))
     updater.dispatcher.add_handler(PollAnswerHandler(rec_poll_answer))
     updater.dispatcher.add_handler(MessageHandler(Filters.voice, voice_handler))

@@ -148,6 +148,15 @@ def getCurrentUnit():
     course_id = user.current_course
     return str(user.unit_index[course_id])
 
+@app.route("/resetUnit", methods=['POST'])
+def resetUnit():
+    user = User.query.filter_by(chat_id=request.args['chat_id']).first()
+    course_id = user.current_course
+    new_list = user.unit_index.copy()
+    new_list[course_id] = 0
+    user.unit_index = new_list
+    db.session.commit()
+    return str(user.unit_index[course_id])
 
 @app.route("/userNewCourse", methods=['POST'])
 def userNewCourse():
