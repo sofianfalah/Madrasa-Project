@@ -33,6 +33,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 audio_flag = False
+vocab_len = 0
+
 
 class course(Enum):
     mathilim = 0
@@ -181,6 +183,12 @@ def next_unit(update: Update, context: CallbackContext) -> None:
 
 def get_feedback(update: Update, context: CallbackContext) -> None:
     # TODO: Add feedback table
+    prefix = '@MadrasaArabicBot /feedback \n'
+    txt = update.message.text
+    if txt.startswith(prefix):
+        txt = txt[len(prefix) + 1:]
+    requests.post('http://127.0.0.1:5000/addfeedback',
+                  params={'chat_id': update.message.chat_id, 'feedback': txt})
     update.message.reply_text('קיבלנו את המשוב, תודה רבה!', reply_markup=ReplyKeyboardRemove())
     bot.sendSticker(chat_id=update.message.chat_id,
                     sticker="https://raw.githubusercontent.com/LenaHelo/stickers/main/nhrk_s3d.webp")
@@ -202,10 +210,11 @@ def messageToDelete(chat_id, message_id):
 def handlingAudioSegment(chat_id, counter):
     if counter == 0:
         bot.sendMessage(chat_id, "בקורס הזה תקבלו מילים בערבית ותתרגלו את ההגיה דרך שליחת הקלטות לבוט")
-    global audio_flag
+    global audio_flag, vocab_len
     file_path = os.path.join(os.getcwd(), "jsonFiles/vocab.json")
     f = open(file_path, encoding="utf8")
     data = json.load(f)
+    vocab_len = len(data)
     text1 = data[counter]["arabic"] + " " + "[" + data[counter]["part_of_speech"] + "]"
     text2 = "משמעות " + data[counter]["arabic"] + " בעברית: " + data[counter]["hebrew"]
     text3 = "נא לשלוח הקלטה של הביטוי: " + data[counter]["arabic"]
@@ -221,7 +230,7 @@ def handlingAudioSegment(chat_id, counter):
 
     except telegram.error.BadRequest as e:
         print(e)
-        bot.sendMessage(chat_id,'שגיאת התחברות לאינטרנט, נא לחזור על הפעולה שוב',reply_markup=repp)
+        bot.sendMessage(chat_id, 'שגיאת התחברות לאינטרנט, נא לחזור על הפעולה שוב', reply_markup=repp)
     finally:
         f.close()
 
@@ -336,7 +345,6 @@ def button(update: Update, context: CallbackContext) -> None:
         query.delete_message()
 
 
-
 def voice_handler(update, context):
     try:
         global audio_flag
@@ -446,7 +454,14 @@ def previous_unit(update: Update, context: CallbackContext) -> None:
 
 def skip_unit(update: Update, context: CallbackContext) -> None:
     res = requests.post('http://127.0.0.1:5000/skipUnit',
-                        params={'chat_id': update.message.chat_id})
+                        params={'chat_id': update.message.chat_id, 'vocab_len': vocab_len})
+    if res.text == 'end of vocab':
+        reply_keyboard = [['/startAgain', '/exercises']]
+        rep = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+        bot.sendMessage(chat_id=update.message.chat_id,
+                        text='כל הכבוד! סיימת את הקורס',
+                        reply_markup=rep)
+
     requests.delete('http://127.0.0.1:5000/DeleteAudioMessages',
                     params={'chat_id': update.message.chat_id})
 
@@ -474,6 +489,7 @@ def start_again(update: Update, context: CallbackContext) -> None:
                       params={'chat_id': update.message.chat_id})
     curr_unit = int(r.text)
     handlingAudioSegment(update.message.chat_id, curr_unit)
+
 
 def main() -> None:
     """Start the bot."""

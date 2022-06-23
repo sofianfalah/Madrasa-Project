@@ -148,6 +148,7 @@ def getCurrentUnit():
     course_id = user.current_course
     return str(user.unit_index[course_id])
 
+
 @app.route("/resetUnit", methods=['POST'])
 def resetUnit():
     user = User.query.filter_by(chat_id=request.args['chat_id']).first()
@@ -157,6 +158,7 @@ def resetUnit():
     user.unit_index = new_list
     db.session.commit()
     return str(user.unit_index[course_id])
+
 
 @app.route("/userNewCourse", methods=['POST'])
 def userNewCourse():
@@ -223,8 +225,8 @@ def skipUnit():
     user = User.query.filter_by(chat_id=request.args['chat_id']).first()
     course_id = user.current_course
     new_list = user.unit_index.copy()
-    # if new_list[course_id] == len(course1),len(course2): #TODO check the end of courses
-    #     return 'FAILED'
+    if new_list[course_id] == request.args['vocab_len']:
+        return 'end of vocab'
 
     if course_id != course.talkingWithMadrasa.value:
         exercise_list = user.exercise_index.copy()
@@ -311,7 +313,7 @@ def deleteUser():
 
 @app.route("/DeleteAudioMessages", methods=['DELETE'])
 def DeleteAudioMessages():
-    lst = AudioMessages.query.filter_by(chat_id = request.args['chat_id']).all()
+    lst = AudioMessages.query.filter_by(chat_id=request.args['chat_id']).all()
     if len(lst) == 0:
         return 'there is no messages to delete'
     if len(lst) > 1:
@@ -327,7 +329,6 @@ def DeleteAudioMessages():
     return 'deleted'
 
 
-
 @app.route("/addMessageToDelete", methods=['POST'])
 def addMessageToDelete():
     try:
@@ -339,6 +340,23 @@ def addMessageToDelete():
     except exc.IntegrityError:
         db.session.rollback()
         return 'message already exist'
+
+
+@app.route("/addfeedback", methods=['POST'])
+def addfeedback():
+    try:
+        old_feedback = UsersFeedback.query.filter_by(chat_id=request.args['chat_id']).all()
+        if len(old_feedback) != 0:
+            db.session.delete(old_feedback[0])
+            db.session.commit()
+        new_feedback = UsersFeedback(chat_id=request.args['chat_id'],
+                                     feedback=request.args['feedback'])
+        db.session.add(new_feedback)
+        db.session.commit()
+        return 'added feedback'
+    except exc.IntegrityError:
+        db.session.rollback()
+        return 'error'
 
 
 class User(db.Model):
@@ -357,6 +375,14 @@ class AudioMessages(db.Model):
     __tablename__ = 'AudioMessages'
     chat_id = db.Column(db.BigInteger, ForeignKey(User.chat_id), nullable=False)
     message_id = db.Column(db.BigInteger, primary_key=True, nullable=False)
+
+
+class UsersFeedback(db.Model):
+    __tablename__ = 'UsersFeedback'
+    feedback_number = db.Column(db.BigInteger, db.Sequence(name='feedback_id', start=1, increment=1), primary_key=True,
+                                nullable=False)
+    chat_id = db.Column(db.BigInteger, nullable=False)
+    feedback = db.Column(db.Text, nullable=False)
 
 
 # db.drop_all()
