@@ -33,7 +33,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 audio_flag = False
-vocab_len = 0
 
 
 class course(Enum):
@@ -150,6 +149,26 @@ def exercises(update: Update, context: CallbackContext) -> None:
         update.message.reply_text('הקורסים של מדרסה:', reply_markup=reply_markup)
 
 
+def getLengthOfCurrCourse(course_id):
+
+    file_name = ""
+    if course_id == course.mathilim.value:
+        file_name = "jsonFiles/mathilim.json"
+    elif course_id == course.mamshikhim.value:
+        file_name = "jsonFiles/mamshikhim.json"
+    elif course_id == course.refuit.value:
+        file_name = "jsonFiles/refuit.json"
+    elif course_id == course.talkingWithMadrasa.value:
+        file_name = "jsonFiles/vocab.json"
+
+    file_path = os.path.join(os.getcwd(), file_name)
+    f = open(file_path, encoding="utf8")
+    data = json.load(f)
+    course_len = len(data)
+    f.close()
+    return course_len
+
+
 def next_exercise(update: Update, context: CallbackContext) -> None:
     requests.delete('http://127.0.0.1:5000/DeleteAudioMessages',
                     params={'chat_id': update.message.chat_id})
@@ -161,24 +180,44 @@ def next_exercise(update: Update, context: CallbackContext) -> None:
                       params={'chat_id': update.message.chat_id})
     curr_course = int(r.text)
     if curr_course == course.talkingWithMadrasa.value:
-        handlingAudioSegment(update.message.chat_id, curr_unit)
+        curr_course_len = getLengthOfCurrCourse(curr_course)
+        r = requests.post('http://127.0.0.1:5000/checkEndOfFile',
+                          params={'chat_id': update.message.chat_id,
+                                  'courseLen': curr_course_len})
+        if r.text == 'True':
+            reply_keyboard = [['/startAgain', '/exercises']]
+            rep = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+            bot.sendMessage(chat_id=update.message.chat_id,
+                            text='כל הכבוד! סיימת את הקורס',
+                            reply_markup=rep)
+        else:
+            handlingAudioSegment(update.message.chat_id, curr_unit)
     else:
         handlingSegments(update.message.chat_id, curr_unit, curr_course)
-
-    # TODO: check course_id + handlingSegments()
 
 
 def next_unit(update: Update, context: CallbackContext) -> None:
     r = requests.delete('http://127.0.0.1:5000/DeleteAudioMessages',
                         params={'chat_id': update.message.chat_id})
-    print(r.text)
+    # print(r.text)
     r = requests.post('http://127.0.0.1:5000/getCurrentUnit',
                       params={'chat_id': update.message.chat_id})
     curr_unit = int(r.text)
     r = requests.post('http://127.0.0.1:5000/getCurrentCourse',
                       params={'chat_id': update.message.chat_id})
     curr_course = int(r.text)
-    handlingSegments(update.message.chat_id, curr_unit, curr_course)
+    curr_course_len = getLengthOfCurrCourse(curr_course)
+    r = requests.post('http://127.0.0.1:5000/checkEndOfFile',
+                      params={'chat_id': update.message.chat_id,
+                              'courseLen': curr_course_len})
+    if r.text == 'True':
+        reply_keyboard = [['/startAgain', '/exercises']]
+        rep = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+        bot.sendMessage(chat_id=update.message.chat_id,
+                        text='כל הכבוד! סיימת את הקורס',
+                        reply_markup=rep)
+    else:
+        handlingSegments(update.message.chat_id, curr_unit, curr_course)
 
 
 def get_feedback(update: Update, context: CallbackContext) -> None:
@@ -210,11 +249,10 @@ def messageToDelete(chat_id, message_id):
 def handlingAudioSegment(chat_id, counter):
     if counter == 0:
         bot.sendMessage(chat_id, "בקורס הזה תקבלו מילים בערבית ותתרגלו את ההגיה דרך שליחת הקלטות לבוט")
-    global audio_flag, vocab_len
+    global audio_flag
     file_path = os.path.join(os.getcwd(), "jsonFiles/vocab.json")
     f = open(file_path, encoding="utf8")
     data = json.load(f)
-    vocab_len = len(data)
     text1 = data[counter]["arabic"] + " " + "[" + data[counter]["part_of_speech"] + "]"
     text2 = "משמעות " + data[counter]["arabic"] + " בעברית: " + data[counter]["hebrew"]
     text3 = "נא לשלוח הקלטה של הביטוי: " + data[counter]["arabic"]
@@ -453,6 +491,7 @@ def previous_unit(update: Update, context: CallbackContext) -> None:
 
 
 def skip_unit(update: Update, context: CallbackContext) -> None:
+    vocab_len = getLengthOfCurrCourse(course.talkingWithMadrasa.value)
     res = requests.post('http://127.0.0.1:5000/skipUnit',
                         params={'chat_id': update.message.chat_id, 'vocab_len': vocab_len})
     if res.text == 'end of vocab':
@@ -461,6 +500,7 @@ def skip_unit(update: Update, context: CallbackContext) -> None:
         bot.sendMessage(chat_id=update.message.chat_id,
                         text='כל הכבוד! סיימת את הקורס',
                         reply_markup=rep)
+        return
 
     requests.delete('http://127.0.0.1:5000/DeleteAudioMessages',
                     params={'chat_id': update.message.chat_id})
@@ -488,7 +528,13 @@ def start_again(update: Update, context: CallbackContext) -> None:
     r = requests.post('http://127.0.0.1:5000/resetUnit',
                       params={'chat_id': update.message.chat_id})
     curr_unit = int(r.text)
-    handlingAudioSegment(update.message.chat_id, curr_unit)
+    r = requests.post('http://127.0.0.1:5000/getCurrentCourse',
+                      params={'chat_id': update.message.chat_id})
+    curr_course = int(r.text)
+    if curr_course == course.talkingWithMadrasa.value:
+        handlingAudioSegment(update.message.chat_id, curr_unit)
+    else:
+        handlingSegments(update.message.chat_id, curr_unit, curr_course)
 
 
 def main() -> None:

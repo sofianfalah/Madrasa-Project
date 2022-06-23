@@ -157,7 +157,21 @@ def resetUnit():
     new_list[course_id] = 0
     user.unit_index = new_list
     db.session.commit()
+    if course_id != course.talkingWithMadrasa:
+        exercise_lst = user.exercise_index.copy()
+        exercise_lst[course_id] = -1
+        user.exercise_index = exercise_lst
+        db.session.commit()
+    #TODO: reset grades? No
     return str(user.unit_index[course_id])
+
+@app.route("/checkEndOfFile", methods=['POST'])
+def checkEndOfFile():
+    user = User.query.filter_by(chat_id=request.args['chat_id']).first()
+    course_id = user.current_course
+    if user.unit_index[course_id] == request.args['courseLen']:
+        return 'True'
+    return 'False'
 
 
 @app.route("/userNewCourse", methods=['POST'])
