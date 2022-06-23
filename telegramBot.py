@@ -408,7 +408,6 @@ def button(update: Update, context: CallbackContext) -> None:
             handlingSegments(chat_id, unit_index, course_id)
 
 
-
 def voice_handler(update, context):
     try:
         # global audio_flag
@@ -522,6 +521,11 @@ def previous_unit(update: Update, context: CallbackContext) -> None:
         if curr_course == course.talkingWithMadrasa.value:
             handlingAudioSegment(update.message.chat_id, curr_unit)
         else:
+            requests.post('http://127.0.0.1:5000/previousUnit',
+                          params={'chat_id': update.message.chat_id})
+            r = requests.post('http://127.0.0.1:5000/getCurrentUnit',
+                              params={'chat_id': update.message.chat_id})
+            curr_unit = int(r.text)
             handlingSegments(update.message.chat_id, curr_unit, curr_course)
 
 
@@ -589,13 +593,12 @@ def grades(update: Update, context: CallbackContext) -> None:
     res = requests.post('http://127.0.0.1:5000/getGrades',
                         params={'chat_id': update.message.chat_id})
     title_txt = 'הציונים מציינים אחוז התשובות הנכונות מכלל התרגילים שפתרתם.' + '\n\n'
-    mathelem =mathelem+ str(res.json()['mathelem'])+ '%'  + '\n\n'
-    mamshikhim =mamshikhim+ str(res.json()['mamshikhim']) +'%' + '\n\n'
-    refuet = refuet+str(res.json()['refuet']) +'%' + '\n\n'
-    talking = talking+str(res.json()['talking']) +'%' + '\n'
+    mathelem = mathelem + str(res.json()['mathelem']) + '%' + '\n\n'
+    mamshikhim = mamshikhim + str(res.json()['mamshikhim']) + '%' + '\n\n'
+    refuet = refuet + str(res.json()['refuet']) + '%' + '\n\n'
+    talking = talking + str(res.json()['talking']) + '%' + '\n'
     txt = title_txt + mathelem + mamshikhim + refuet + talking
-    bot.sendMessage(chat_id= update.message.chat_id,text = txt)
-
+    bot.sendMessage(chat_id=update.message.chat_id, text=txt)
 
 
 def main() -> None:
