@@ -157,19 +157,20 @@ def resetUnit():
     new_list[course_id] = 0
     user.unit_index = new_list
     db.session.commit()
-    if course_id != course.talkingWithMadrasa:
+    if course_id != course.talkingWithMadrasa.value:
         exercise_lst = user.exercise_index.copy()
         exercise_lst[course_id] = -1
         user.exercise_index = exercise_lst
         db.session.commit()
-    #TODO: reset grades? No
+    #TODO: send score + reset it
+    print(user.unit_index[course_id])
     return str(user.unit_index[course_id])
 
 @app.route("/checkEndOfFile", methods=['POST'])
 def checkEndOfFile():
     user = User.query.filter_by(chat_id=request.args['chat_id']).first()
     course_id = user.current_course
-    if user.unit_index[course_id] == request.args['courseLen']:
+    if user.unit_index[course_id] >= int(request.args['courseLen']):
         return 'True'
     return 'False'
 
@@ -239,7 +240,7 @@ def skipUnit():
     user = User.query.filter_by(chat_id=request.args['chat_id']).first()
     course_id = user.current_course
     new_list = user.unit_index.copy()
-    if new_list[course_id] == request.args['vocab_len']:
+    if new_list[course_id] >= int(request.args['vocab_len']):
         return 'end of vocab'
 
     if course_id != course.talkingWithMadrasa.value:
@@ -359,18 +360,36 @@ def addMessageToDelete():
 @app.route("/addfeedback", methods=['POST'])
 def addfeedback():
     try:
-        old_feedback = UsersFeedback.query.filter_by(chat_id=request.args['chat_id']).all()
-        if len(old_feedback) != 0:
-            db.session.delete(old_feedback[0])
-            db.session.commit()
-        new_feedback = UsersFeedback(chat_id=request.args['chat_id'],
-                                     feedback=request.args['feedback'])
+        new_feedback = UsersFeedback(feedback=request.args['feedback'])
         db.session.add(new_feedback)
         db.session.commit()
         return 'added feedback'
     except exc.IntegrityError:
         db.session.rollback()
         return 'error'
+
+
+@app.route("/getGrades", methods=['POST'])
+def getGrades():
+    user = User.query.filter_by(chat_id=request.args['chat_id']).first()
+    mathelem =0
+    mamshikhim=0
+    refuet=0
+    talking=0
+    if user.total_answers[0]!=0:
+        mathelem = (user.correct_answers[0] / user.total_answers[0])*100
+    if user.total_answers[1]!=0:
+        mamshikhim = (user.correct_answers[1]/user.total_answers[1])*100
+    if user.total_answers[2] != 0:
+        refuet = (user.correct_answers[2]/user.total_answers[2])*100
+    if user.total_answers[3]!=0:
+        talking = (user.correct_answers[3]/user.total_answers[3])*100
+    grades_dict = {'mathelem': mathelem,
+                   'mamshikhim': mamshikhim,
+                   'refuet': refuet,
+                   'talking': talking}
+    return jsonify(grades_dict)
+
 
 
 class User(db.Model):
@@ -395,7 +414,6 @@ class UsersFeedback(db.Model):
     __tablename__ = 'UsersFeedback'
     feedback_number = db.Column(db.BigInteger, db.Sequence(name='feedback_id', start=1, increment=1), primary_key=True,
                                 nullable=False)
-    chat_id = db.Column(db.BigInteger, nullable=False)
     feedback = db.Column(db.Text, nullable=False)
 
 

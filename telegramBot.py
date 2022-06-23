@@ -1,6 +1,6 @@
 import speech_recognition
 import telegram
-from telegram import Update, ParseMode, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, \
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, \
     ReplyKeyboardRemove
 from telegram.ext import PollAnswerHandler, Updater, CommandHandler, CallbackQueryHandler, CallbackContext, \
     MessageHandler, Filters
@@ -10,13 +10,10 @@ import logging
 import requests
 import speech_recognition as sr
 import config
-from os import path
-from pydub import AudioSegment
 import subprocess
 import json
 from Levenshtein import distance as lev
 import os
-import time
 from enum import Enum
 
 global bot
@@ -32,7 +29,8 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-audio_flag = False
+
+# audio_flag = False
 
 
 class course(Enum):
@@ -44,8 +42,8 @@ class course(Enum):
 
 def start(update: Update, context: CallbackContext) -> None:
     """Send a message when the command /start is issued."""
-    r = requests.delete('http://127.0.0.1:5000/DeleteAudioMessages',
-                        params={'chat_id': update.message.chat_id})
+    requests.delete('http://127.0.0.1:5000/DeleteAudioMessages',
+                    params={'chat_id': update.message.chat_id})
     r = requests.post('http://127.0.0.1:5000/userExists',
                       params={'chat_id': update.message.chat_id})
     if r.text == 'Does Not Exist':
@@ -150,7 +148,6 @@ def exercises(update: Update, context: CallbackContext) -> None:
 
 
 def getLengthOfCurrCourse(course_id):
-
     file_name = ""
     if course_id == course.mathilim.value:
         file_name = "jsonFiles/mathilim.json"
@@ -190,6 +187,9 @@ def next_exercise(update: Update, context: CallbackContext) -> None:
             bot.sendMessage(chat_id=update.message.chat_id,
                             text='כל הכבוד! סיימת את הקורס',
                             reply_markup=rep)
+            bot.sendSticker(chat_id=update.message.chat_id,
+                            sticker="https://raw.githubusercontent.com/LenaHelo/stickers/main/bjnn.webp")
+
         else:
             handlingAudioSegment(update.message.chat_id, curr_unit)
     else:
@@ -216,18 +216,20 @@ def next_unit(update: Update, context: CallbackContext) -> None:
         bot.sendMessage(chat_id=update.message.chat_id,
                         text='כל הכבוד! סיימת את הקורס',
                         reply_markup=rep)
+        bot.sendSticker(chat_id=update.message.chat_id,
+                        sticker="https://raw.githubusercontent.com/LenaHelo/stickers/main/bjnn.webp")
+
     else:
         handlingSegments(update.message.chat_id, curr_unit, curr_course)
 
 
 def get_feedback(update: Update, context: CallbackContext) -> None:
-    # TODO: Add feedback table
     prefix = '@MadrasaArabicBot /feedback \n'
     txt = update.message.text
     if txt.startswith(prefix):
         txt = txt[len(prefix) + 1:]
     requests.post('http://127.0.0.1:5000/addfeedback',
-                  params={'chat_id': update.message.chat_id, 'feedback': txt})
+                  params={'feedback': txt})
     update.message.reply_text('קיבלנו את המשוב, תודה רבה!', reply_markup=ReplyKeyboardRemove())
     bot.sendSticker(chat_id=update.message.chat_id,
                     sticker="https://raw.githubusercontent.com/LenaHelo/stickers/main/nhrk_s3d.webp")
@@ -249,7 +251,11 @@ def messageToDelete(chat_id, message_id):
 def handlingAudioSegment(chat_id, counter):
     if counter == 0:
         bot.sendMessage(chat_id, "בקורס הזה תקבלו מילים בערבית ותתרגלו את ההגיה דרך שליחת הקלטות לבוט")
-    global audio_flag
+        reply_keyboard = [['/skipUnit']]
+    else:
+        reply_keyboard = [['/previousUnit', '/skipUnit']]
+
+    # global audio_flag
     file_path = os.path.join(os.getcwd(), "jsonFiles/vocab.json")
     f = open(file_path, encoding="utf8")
     data = json.load(f)
@@ -257,12 +263,11 @@ def handlingAudioSegment(chat_id, counter):
     text2 = "משמעות " + data[counter]["arabic"] + " בעברית: " + data[counter]["hebrew"]
     text3 = "נא לשלוח הקלטה של הביטוי: " + data[counter]["arabic"]
     text = text1 + '\n' + text2 + '\n' + text3
-    reply_keyboard = [['/previousUnit', '/skipUnit']]
     repp = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
     try:
         mes = bot.sendAudio(chat_id=chat_id, audio=data[counter]["audio"],
                             caption=text, reply_markup=repp)
-        audio_flag = True
+        # audio_flag = True
         messageToDelete(chat_id, mes.message_id)
         print("message added to db, message_id = ", mes.message_id)
 
@@ -287,10 +292,9 @@ def handlingSegments(chat_id, array_index, course_id):
     file_path = os.path.join(os.getcwd(), file_name)
     f = open(file_path, encoding="utf8")
     data = json.load(f)
-    # TODO: a5r json blmlf
     if exercise_index == -1:
         text1 = "שיעור מספר " + str(data[array_index]["Lesson"]) + ", יחידה מספר " + str(
-            data[array_index]["unit"]) + "\n";
+            data[array_index]["unit"]) + "\n"
         text2 = data[array_index]["Title"] + "\n"
         bot.sendMessage(chat_id, text1 + text2)
         if data[array_index]["videoURL"] != "":
@@ -299,13 +303,19 @@ def handlingSegments(chat_id, array_index, course_id):
         if len(data[array_index]["exercises"]) == 0:
             requests.post('http://127.0.0.1:5000/userNextUnit',
                           params={'chat_id': chat_id})
-            reply_keyboard = [['/nextUnit', '/start']]
+            if array_index == 0:
+                reply_keyboard = [['/nextUnit']]
+            else:
+                reply_keyboard = [['/previousUnit', '/nextUnit']]
             repp = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
             bot.sendMessage(chat_id, 'nextUnit - ' + 'המשך' + '\n', reply_markup=repp)
         else:
             requests.post('http://127.0.0.1:5000/userNextExercise',
                           params={'chat_id': chat_id})
-            reply_keyboard = [['/startExercising', '/start']]
+            if array_index == 0:
+                reply_keyboard = [['/startExercising']]
+            else:
+                reply_keyboard = [['/previousUnit', '/startExercising']]
             repp = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
             bot.sendMessage(chat_id, 'startExercising - ' + 'התחל' + '\n', reply_markup=repp)
             bot.sendSticker(chat_id=chat_id,
@@ -330,14 +340,14 @@ def handlingSegments(chat_id, array_index, course_id):
                           params={'chat_id': chat_id})
             requests.post('http://127.0.0.1:5000/userResetExerciseNum',
                           params={'chat_id': chat_id})
-            reply_keyboard = [['/nextUnit', '/start']]
+            reply_keyboard = [['/nextUnit']]
             repp = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
             bot.sendMessage(chat_id, 'nextUnit - ' + 'המשך' + '\n', reply_markup=repp)
 
         else:
             requests.post('http://127.0.0.1:5000/userNextExercise',
                           params={'chat_id': chat_id})
-            reply_keyboard = [['/nextExercise', '/start']]
+            reply_keyboard = [['/nextExercise']]
             repp = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
             bot.sendMessage(chat_id, 'nextExercise - ' + 'המשך' + '\n', reply_markup=repp)
 
@@ -348,44 +358,60 @@ def button(update: Update, context: CallbackContext) -> None:
     """Parses the CallbackQuery and updates the message text."""
     query = update.callback_query
     chat_id = query.from_user.id
+
+    r = requests.post('http://127.0.0.1:5000/getCurrentUnit',
+                      params={'chat_id': chat_id})
+    curr_unit = int(r.text)
+    unit_index = 0
+    course_id = 0
     # CallbackQueries need to be answered, even if no notification to the user is needed
     if query.data == "talkingWithMadrasa":
         r = requests.post('http://127.0.0.1:5000/userNewCourse',
                           params={'chat_id': chat_id, 'course_id': course.talkingWithMadrasa.value})
-        curr_unit = int(r.text)
+
         query.answer('תשובתך נשמרה')
         query.delete_message()
-        if curr_unit > 0:
-            reply_keyboard = [['/resume', '/startAgain']]
-            repp = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
-            text1 = 'resume - ' + 'להמשיך את התרגיל מאיפה שעצרת בפעם אחרונה ' + '\n\n'
-            text2 = 'startAgain - ' + 'להתחיל את התרגיל מחדש'
-            bot.sendMessage(chat_id, text1 + text2, reply_markup=repp)
-        else:
-            handlingAudioSegment(chat_id, curr_unit)
+
     elif query.data == "mathilim":
         r = requests.post('http://127.0.0.1:5000/userNewCourse',
                           params={'chat_id': query.from_user.id, 'course_id': course.mathilim.value})
-        handlingSegments(chat_id, int(r.text), course.mathilim.value)
+        unit_index = int(r.text)
+        course_id = course.mathilim.value
         query.answer('תשובתך נשמרה')
         query.delete_message()
+
     elif query.data == "mamshikhim":
         r = requests.post('http://127.0.0.1:5000/userNewCourse',
                           params={'chat_id': query.from_user.id, 'course_id': course.mamshikhim.value})
-        handlingSegments(chat_id, int(r.text), course.mamshikhim.value)
+
+        unit_index = int(r.text)
+        course_id = course.mamshikhim.value
         query.answer('תשובתך נשמרה')
         query.delete_message()
     elif query.data == "refuit":
         r = requests.post('http://127.0.0.1:5000/userNewCourse',
                           params={'chat_id': query.from_user.id, 'course_id': course.refuit.value})
-        handlingSegments(chat_id, int(r.text), course.refuit.value)
+        unit_index = int(r.text)
+        course_id = course.refuit.value
         query.answer('תשובתך נשמרה')
         query.delete_message()
+    if curr_unit > 0:
+        reply_keyboard = [['/resume', '/startAgain']]
+        repp = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+        text1 = 'resume - ' + 'להמשיך את התרגיל מאיפה שעצרת בפעם אחרונה ' + '\n\n'
+        text2 = 'startAgain - ' + 'להתחיל את התרגיל מחדש'
+        bot.sendMessage(chat_id, text1 + text2, reply_markup=repp)
+    else:
+        if query.data == "talkingWithMadrasa":
+            handlingAudioSegment(chat_id, curr_unit)
+        else:
+            handlingSegments(chat_id, unit_index, course_id)
+
 
 
 def voice_handler(update, context):
     try:
-        global audio_flag
+        # global audio_flag
         bot = context.bot
 
         file = bot.getFile(update.message.voice.file_id)
@@ -406,10 +432,16 @@ def voice_handler(update, context):
             # recognize (convert from speech to text)
             text = r.recognize_google(audio_data, language='ar-AR')
             text1 = "הביטוי שאמרת: " + text
-            if audio_flag == False:
+            r = requests.post('http://127.0.0.1:5000/getCurrentCourse',
+                              params={'chat_id': update.message.chat_id})
+            curr_course = int(r.text)
+            if curr_course != course.talkingWithMadrasa.value:
                 bot.sendMessage(update.message.chat_id, "הביטוי שאמרת: " + '\n\n' + text)
                 return 'speechToText'
-            audio_flag = False
+            # if audio_flag == False:
+            #     bot.sendMessage(update.message.chat_id, "הביטוי שאמרת: " + '\n\n' + text)
+            #     return 'speechToText'
+            # audio_flag = False
             r = requests.post('http://127.0.0.1:5000/getCurrentUnit',
                               params={'chat_id': update.message.chat_id})
 
@@ -442,7 +474,7 @@ def voice_handler(update, context):
 
             bot.sendMessage(update.message.chat_id, text1, reply_to_message_id=update.message.message_id)
 
-            reply_keyboard = [['/nextExercise', '/start']]
+            reply_keyboard = [['/nextExercise']]
             repp = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
             update.message.reply_text(
                 fr'nextExercise - ' + 'לתרגיל הבא' + '\n', reply_markup=repp)
@@ -457,6 +489,9 @@ def rec_poll_answer(update: Update, context: CallbackContext) -> None:
     r = requests.post('http://127.0.0.1:5000/updateCorrectAnswers',
                       params={'chat_id': answer.user.id, 'selected_option': answer.option_ids[0]})
     print(r.text)
+
+    # TODO: Add polls
+
     # url = 'http://localhost:5000/receivePollAnswer'
     # myobj = {'chat_id': answer.user.id,
     #          'bot_poll_id': answer.poll_id,
@@ -473,7 +508,7 @@ def previous_unit(update: Update, context: CallbackContext) -> None:
     res = requests.post('http://127.0.0.1:5000/previousUnit',
                         params={'chat_id': update.message.chat_id})
     if res.text == 'FAILED':
-        update.message.reply_text('את/ה נמצא ביחידה הראשונה, אי אפשר לחזור אחורה! נא להקליט בבקשה')
+        update.message.reply_text('את/ה נמצא ביחידה הראשונה, אי אפשר לחזור אחורה!')
     else:
         requests.delete('http://127.0.0.1:5000/DeleteAudioMessages',
                         params={'chat_id': update.message.chat_id})
@@ -500,6 +535,9 @@ def skip_unit(update: Update, context: CallbackContext) -> None:
         bot.sendMessage(chat_id=update.message.chat_id,
                         text='כל הכבוד! סיימת את הקורס',
                         reply_markup=rep)
+        bot.sendSticker(chat_id=update.message.chat_id,
+                        sticker="https://raw.githubusercontent.com/LenaHelo/stickers/main/bjnn.webp")
+
         return
 
     requests.delete('http://127.0.0.1:5000/DeleteAudioMessages',
@@ -521,7 +559,13 @@ def resume(update: Update, context: CallbackContext) -> None:
     r = requests.post('http://127.0.0.1:5000/getCurrentUnit',
                       params={'chat_id': update.message.chat_id})
     curr_unit = int(r.text)
-    handlingAudioSegment(update.message.chat_id, curr_unit)
+    r = requests.post('http://127.0.0.1:5000/getCurrentCourse',
+                      params={'chat_id': update.message.chat_id})
+    curr_course = int(r.text)
+    if curr_course == course.talkingWithMadrasa.value:
+        handlingAudioSegment(update.message.chat_id, curr_unit)
+    else:
+        handlingSegments(update.message.chat_id, curr_unit, curr_course)
 
 
 def start_again(update: Update, context: CallbackContext) -> None:
@@ -537,11 +581,29 @@ def start_again(update: Update, context: CallbackContext) -> None:
         handlingSegments(update.message.chat_id, curr_unit, curr_course)
 
 
+def grades(update: Update, context: CallbackContext) -> None:
+    mathelem = "קורס ערבית מדוברת מתחילים: "
+    mamshikhim = "קורס ערבית מדוברת ממשיכים: "
+    refuet = "קורס ערבית מדוברת לצוותים רפואיים: "
+    talking = "קורס מדברים עם מדרסה: "
+    res = requests.post('http://127.0.0.1:5000/getGrades',
+                        params={'chat_id': update.message.chat_id})
+    title_txt = 'הציונים מציינים אחוז התשובות הנכונות מכלל התרגילים שפתרתם.' + '\n\n'
+    mathelem =mathelem+ str(res.json()['mathelem'])+ '%'  + '\n\n'
+    mamshikhim =mamshikhim+ str(res.json()['mamshikhim']) +'%' + '\n\n'
+    refuet = refuet+str(res.json()['refuet']) +'%' + '\n\n'
+    talking = talking+str(res.json()['talking']) +'%' + '\n'
+    txt = title_txt + mathelem + mamshikhim + refuet + talking
+    bot.sendMessage(chat_id= update.message.chat_id,text = txt)
+
+
+
 def main() -> None:
     """Start the bot."""
     # Create the Updater and pass it your bot's token.
     command = [BotCommand("start", "תפריט התחלה"),
                BotCommand("exercises", "להתחיל לתרגל"),
+               BotCommand("grades", "לצפות בציוני הקורסים"),
                BotCommand("register", "הרשמה במערכת"),
                BotCommand("remove", "ביטול רישום")]
     bot.set_my_commands(command)
@@ -558,6 +620,7 @@ def main() -> None:
     updater.dispatcher.add_handler(CommandHandler("skipUnit", skip_unit))
     updater.dispatcher.add_handler(CommandHandler("resume", resume))
     updater.dispatcher.add_handler(CommandHandler("startAgain", start_again))
+    updater.dispatcher.add_handler(CommandHandler("grades", grades))
     updater.dispatcher.add_handler(CallbackQueryHandler(button))
     updater.dispatcher.add_handler(PollAnswerHandler(rec_poll_answer))
     updater.dispatcher.add_handler(MessageHandler(Filters.voice, voice_handler))
