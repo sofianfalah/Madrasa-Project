@@ -6,6 +6,7 @@ from telegram.ext import PollAnswerHandler, Updater, CommandHandler, CallbackQue
     MessageHandler, Filters
 from telegram.bot import BotCommand
 
+import threading
 import logging
 import requests
 import speech_recognition as sr
@@ -333,7 +334,15 @@ def handlingSegments(chat_id, array_index, course_id):
             bot.send_poll(chat_id, problem_dict['text'], problem_dict['answers'], is_anonymous=False,
                           type="quiz", allows_multiple_answers=False, correct_option_id=problem_dict["correct"][0])
         else:
-            print("telegram lo tome5")
+            if "title" in problem_dict:
+                bot.sendMessage(chat_id, problem_dict["title"])
+            if "audio" in problem_dict:
+                mes = bot.sendAudio(chat_id, problem_dict["audio"])
+                messageToDelete(chat_id, mes.message_id)
+            bot.sendMessage(chat_id, 'יש יותר מתשובה אחת נכונה, סמן אותם ותלחץ על Vote'+'\n')
+            bot.send_poll(chat_id, problem_dict['text'], problem_dict['answers'], is_anonymous=False,
+                          allows_multiple_answers=True)
+            print("send poll")
 
         if exercise_index == len(data[array_index]["exercises"]) - 1:
             requests.post('http://127.0.0.1:5000/userNextUnit',
@@ -414,7 +423,7 @@ def voice_handler(update, context):
         bot = context.bot
 
         file = bot.getFile(update.message.voice.file_id)
-
+        print(file)
         file.download('voice.mp3')
         filename = "voice.wav"
         dst = "voice.wav"
@@ -460,13 +469,13 @@ def voice_handler(update, context):
                 context.bot.sendSticker(chat_id=update.message.chat_id,
                                         sticker="https://raw.githubusercontent.com/LenaHelo/stickers/main/bsita.webp")
                 requests.post('http://127.0.0.1:5000/updateCorrectAnswers',
-                              params={'chat_id': update.message.chat_id, 'selected_option': 0})
+                              params={'chat_id': update.message.chat_id, 'selected_option': [0]})
             else:
                 context.bot.sendSticker(chat_id=update.message.chat_id,
                                         sticker="https://raw.githubusercontent.com/LenaHelo/stickers/main/bzbt.webp")
 
                 requests.post('http://127.0.0.1:5000/updateCorrectAnswers',
-                              params={'chat_id': update.message.chat_id, 'selected_option': 1})
+                              params={'chat_id': update.message.chat_id, 'selected_option': [1]})
             requests.post('http://127.0.0.1:5000/userNextUnit',
                           params={'chat_id': update.message.chat_id})
             text1 = text1 + "\n\n" + reply_text
@@ -484,22 +493,25 @@ def voice_handler(update, context):
 def rec_poll_answer(update: Update, context: CallbackContext) -> None:
     """Echo the user message."""
     answer = update.poll_answer
-
+    chat_id = answer.user.id
+    print('poll answer: ',answer)
+    print('selected options: ',answer.option_ids)
+    selected = str(answer.option_ids)[1:-1]
     r = requests.post('http://127.0.0.1:5000/updateCorrectAnswers',
-                      params={'chat_id': answer.user.id, 'selected_option': answer.option_ids[0]})
-    print(r.text)
+                  params={'chat_id': answer.user.id, 'selected_option': selected})
+    dict = r.json()
+    if ('isPoll' in dict) and dict['response']=="wrong answer":
+        #poll
+        response_txt = 'התשובות הנכונות הן: ' + '\n\n'
+        print(dict)
+        if 'correct_answers' in dict:
+            for answer in dict['correct_answers']:
+                answer = int(answer)+1
+                response_txt += 'תשובה מספר: ' +str(answer)+ '\n'
+        bot.sendMessage(chat_id, response_txt)
 
-    # TODO: Add polls
-
-    # url = 'http://localhost:5000/receivePollAnswer'
-    # myobj = {'chat_id': answer.user.id,
-    #          'bot_poll_id': answer.poll_id,
-    #          'option': answer.option_ids[0]
-    #          }
-    #
-    # requests.post(url, json=myobj)
-    if r.text == 'right answer':
-        context.bot.sendSticker(chat_id=answer.user.id,
+    if dict['response'] == 'right answer':
+        context.bot.sendSticker(chat_id=chat_id,
                                 sticker="https://raw.githubusercontent.com/LenaHelo/stickers/main/y3ni_3lk.webp")
 
 

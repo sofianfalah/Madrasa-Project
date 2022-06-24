@@ -256,15 +256,17 @@ def skipUnit():
 
 @app.route("/updateCorrectAnswers", methods=['POST'])
 def updateCorrectAnswers():
+
     user = User.query.filter_by(chat_id=request.args['chat_id']).first()
     course_id = user.current_course
-
     answers_list = user.total_answers.copy()
-    print("total answers: ", answers_list[course_id])
     answers_list[course_id] += 1
     user.total_answers = answers_list
     db.session.commit()
     if course_id != course.talkingWithMadrasa.value:
+        selected_op = request.args['selected_option'].split(',')
+        print("selected_op",selected_op)
+        print(len(selected_op))
         if course_id == course.mathilim.value:
             file_name = "jsonFiles/mathilim.json"
         elif course_id == course.mamshikhim.value:
@@ -274,23 +276,35 @@ def updateCorrectAnswers():
         file_path = os.path.join(os.getcwd(), file_name)
         f = open(file_path, encoding="utf8")
         data = json.load(f)
-        print("course_id", course_id)
 
-        correct_ans = data[user.unit_index[course_id]]["exercises"][user.exercise_index[course_id] - 1]["correct"][0]
+        correct_ans = data[user.unit_index[course_id]]["exercises"][user.exercise_index[course_id]-1]["correct"]
         f.close()
-        print("int(correct_ans): ", int(correct_ans))
-        print("int(request.args['selected_option']:", int(request.args['selected_option']))
-
-        if int(correct_ans) != int(request.args['selected_option']):
-            return "wrong answer"
-    if (course_id == course.talkingWithMadrasa.value and int(request.args['selected_option']) == 1) or (
-            course_id != course.talkingWithMadrasa.value):
+        print("correct_ans",correct_ans)
+        print(len(correct_ans))
+        if len(correct_ans) != len(selected_op):
+            return jsonify({'response': "wrong answer",'correct_answers': correct_ans,'isPoll':True})
+        if len(correct_ans) == 1:
+            if int(correct_ans[0]) != int(selected_op[0]):
+                return jsonify({'response': "wrong answer"})
+        else:
+            print("correct answer: ", correct_ans)
+            print("selected_option: ",selected_op)
+            for i in range(len(correct_ans)):
+                if int(correct_ans[i]) != int(selected_op[i]):
+                    return jsonify({'response': "wrong answer",'correct_answers': correct_ans,'isPoll':True})
+    if course_id == course.talkingWithMadrasa.value and int(request.args['selected_option'][0]) == 1:
         new_list = user.correct_answers.copy()
         new_list[course_id] += 1
         user.correct_answers = new_list
         db.session.commit()
-        return 'right answer'
-    return "wrong answer"
+        return jsonify({'response': 'right answer'})
+    if course_id != course.talkingWithMadrasa.value:
+        new_list = user.correct_answers.copy()
+        new_list[course_id] += 1
+        user.correct_answers = new_list
+        db.session.commit()
+        return jsonify({'response': 'right answer', 'correct_answers': correct_ans})
+    return jsonify({'response': "wrong answer"})
 
 
 @app.route("/users", methods=['POST'])
