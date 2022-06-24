@@ -30,7 +30,7 @@ Value for students: For the students, this will be an opportunity to work with o
 pedagogical and technological team on developing bots for the growing field of online learning 
 and to see its social impact on tens of thousands of learners in Israel. 
 
-Recommended pre-requisite courses: 
+Recommended pre-requisite courses:  
 
 • 236369 - Managing Data On The World-wide Web (Recommended)
 
