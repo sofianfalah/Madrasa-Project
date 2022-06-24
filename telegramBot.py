@@ -5,7 +5,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKe
 from telegram.ext import PollAnswerHandler, Updater, CommandHandler, CallbackQueryHandler, CallbackContext, \
     MessageHandler, Filters
 from telegram.bot import BotCommand
-
+import random
 import threading
 import logging
 import requests
@@ -21,7 +21,7 @@ global bot
 
 bot = telegram.Bot(token=config.TOKEN)
 
-updater = Updater("5317871500:AAGDEX_gtZtw9lBVPK0tgbgQ7i9UtZg_f6U", use_context=True)
+updater = Updater(config.TOKEN, use_context=True)
 
 # Enable logging
 logging.basicConfig(
@@ -189,7 +189,7 @@ def next_exercise(update: Update, context: CallbackContext) -> None:
                             text='כל הכבוד! סיימת את הקורס',
                             reply_markup=rep)
             bot.sendSticker(chat_id=update.message.chat_id,
-                            sticker="https://raw.githubusercontent.com/LenaHelo/stickers/main/bjnn.webp")
+                            sticker="https://raw.githubusercontent.com/LenaHelo/stickers/main/mbrk.webp")
 
         else:
             handlingAudioSegment(update.message.chat_id, curr_unit)
@@ -200,7 +200,7 @@ def next_exercise(update: Update, context: CallbackContext) -> None:
 def next_unit(update: Update, context: CallbackContext) -> None:
     r = requests.delete('http://127.0.0.1:5000/DeleteAudioMessages',
                         params={'chat_id': update.message.chat_id})
-    # print(r.text)
+
     r = requests.post('http://127.0.0.1:5000/getCurrentUnit',
                       params={'chat_id': update.message.chat_id})
     curr_unit = int(r.text)
@@ -218,7 +218,7 @@ def next_unit(update: Update, context: CallbackContext) -> None:
                         text='כל הכבוד! סיימת את הקורס',
                         reply_markup=rep)
         bot.sendSticker(chat_id=update.message.chat_id,
-                        sticker="https://raw.githubusercontent.com/LenaHelo/stickers/main/bjnn.webp")
+                        sticker="https://raw.githubusercontent.com/LenaHelo/stickers/main/mbrk.webp")
 
     else:
         handlingSegments(update.message.chat_id, curr_unit, curr_course)
@@ -246,7 +246,7 @@ def otherMessages(update: Update, context: CallbackContext) -> None:
 def messageToDelete(chat_id, message_id):
     response = requests.post('http://127.0.0.1:5000/addMessageToDelete',
                              params={'chat_id': chat_id, 'message_id': message_id})
-    print(response.text)
+
 
 
 def handlingAudioSegment(chat_id, counter):
@@ -270,7 +270,7 @@ def handlingAudioSegment(chat_id, counter):
                             caption=text, reply_markup=repp)
         # audio_flag = True
         messageToDelete(chat_id, mes.message_id)
-        print("message added to db, message_id = ", mes.message_id)
+
 
     except telegram.error.BadRequest as e:
         print(e)
@@ -342,7 +342,6 @@ def handlingSegments(chat_id, array_index, course_id):
             bot.sendMessage(chat_id, 'יש יותר מתשובה אחת נכונה, סמן אותם ותלחץ על Vote'+'\n')
             bot.send_poll(chat_id, problem_dict['text'], problem_dict['answers'], is_anonymous=False,
                           allows_multiple_answers=True)
-            print("send poll")
 
         if exercise_index == len(data[array_index]["exercises"]) - 1:
             requests.post('http://127.0.0.1:5000/userNextUnit',
@@ -423,7 +422,6 @@ def voice_handler(update, context):
         bot = context.bot
 
         file = bot.getFile(update.message.voice.file_id)
-        print(file)
         file.download('voice.mp3')
         filename = "voice.wav"
         dst = "voice.wav"
@@ -494,8 +492,7 @@ def rec_poll_answer(update: Update, context: CallbackContext) -> None:
     """Echo the user message."""
     answer = update.poll_answer
     chat_id = answer.user.id
-    print('poll answer: ',answer)
-    print('selected options: ',answer.option_ids)
+
     selected = str(answer.option_ids)[1:-1]
     r = requests.post('http://127.0.0.1:5000/updateCorrectAnswers',
                   params={'chat_id': answer.user.id, 'selected_option': selected})
@@ -503,7 +500,7 @@ def rec_poll_answer(update: Update, context: CallbackContext) -> None:
     if ('isPoll' in dict) and dict['response']=="wrong answer":
         #poll
         response_txt = 'התשובות הנכונות הן: ' + '\n\n'
-        print(dict)
+
         if 'correct_answers' in dict:
             for answer in dict['correct_answers']:
                 answer = int(answer)+1
@@ -511,8 +508,11 @@ def rec_poll_answer(update: Update, context: CallbackContext) -> None:
         bot.sendMessage(chat_id, response_txt)
 
     if dict['response'] == 'right answer':
+        stickers_list = ['y3ni_3lk','fsh_mnk','bjnn']
+        choice = random.choice(stickers_list)
+        print(choice)
         context.bot.sendSticker(chat_id=chat_id,
-                                sticker="https://raw.githubusercontent.com/LenaHelo/stickers/main/y3ni_3lk.webp")
+                                sticker="https://raw.githubusercontent.com/LenaHelo/stickers/main/"+choice+".webp")
 
 
 def previous_unit(update: Update, context: CallbackContext) -> None:
@@ -552,7 +552,7 @@ def skip_unit(update: Update, context: CallbackContext) -> None:
                         text='כל הכבוד! סיימת את הקורס',
                         reply_markup=rep)
         bot.sendSticker(chat_id=update.message.chat_id,
-                        sticker="https://raw.githubusercontent.com/LenaHelo/stickers/main/bjnn.webp")
+                        sticker="https://raw.githubusercontent.com/LenaHelo/stickers/main/mbrk.webp")
 
         return
 
