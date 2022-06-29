@@ -605,11 +605,11 @@ def grades(update: Update, context: CallbackContext) -> None:
     res = requests.post('http://127.0.0.1:5000/getGrades',
                         params={'chat_id': update.message.chat_id})
     title_txt = 'הציונים מציינים אחוז התשובות הנכונות מכלל התרגילים שפתרתם.' + '\n\n'
-    mathelem = mathelem + str(res.json()['mathelem']) + '%' + '\n\n'
-    mamshikhim = mamshikhim + str(res.json()['mamshikhim']) + '%' + '\n\n'
-    refuet = refuet + str(res.json()['refuet']) + '%' + '\n\n'
-    talking = talking + str(res.json()['talking']) + '%' + '\n'
-    txt = title_txt + mathelem + mamshikhim + refuet + talking
+    mathelem = mathelem + "{0:.2f}".format(res.json()['mathelem']) + '%' + '\n\n'
+    mamshikhim = mamshikhim + "{0:.2f}".format(res.json()['mamshikhim']) + '%' + '\n\n'
+    refuet = refuet + "{0:.2f}".format(res.json()['refuet']) + '%' + '\n\n'
+    talking = talking + "{0:.2f}".format(res.json()['talking']) + '%' + '\n'
+    txt = title_txt + mathelem + mamshikhim + refuet + talking + '\n\n'
     bot.sendMessage(chat_id=update.message.chat_id, text=txt)
 
 
