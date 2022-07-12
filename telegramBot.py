@@ -339,7 +339,7 @@ def handlingSegments(chat_id, array_index, course_id):
             if "audio" in problem_dict:
                 mes = bot.sendAudio(chat_id, problem_dict["audio"])
                 messageToDelete(chat_id, mes.message_id)
-            bot.sendMessage(chat_id, 'יש יותר מתשובה אחת נכונה, סמן אותם ותלחץ על Vote'+'\n')
+            bot.sendMessage(chat_id, 'יש יותר מתשובה אחת נכונה, סמן אותן ותלחץ על Vote'+'\n')
             bot.send_poll(chat_id, problem_dict['text'], problem_dict['answers'], is_anonymous=False,
                           allows_multiple_answers=True)
 
@@ -367,9 +367,7 @@ def button(update: Update, context: CallbackContext) -> None:
     query = update.callback_query
     chat_id = query.from_user.id
 
-    r = requests.post('http://127.0.0.1:5000/getCurrentUnit',
-                      params={'chat_id': chat_id})
-    curr_unit = int(r.text)
+    curr_unit = 0
     unit_index = 0
     course_id = 0
     # CallbackQueries need to be answered, even if no notification to the user is needed
@@ -378,23 +376,32 @@ def button(update: Update, context: CallbackContext) -> None:
                           params={'chat_id': chat_id, 'course_id': course.talkingWithMadrasa.value})
 
         query.answer('תשובתך נשמרה')
+        r = requests.post('http://127.0.0.1:5000/getCurrentUnit',
+                          params={'chat_id': chat_id})
+        curr_unit = int(r.text)
         query.delete_message()
 
     elif query.data == "mathilim":
         r = requests.post('http://127.0.0.1:5000/userNewCourse',
                           params={'chat_id': query.from_user.id, 'course_id': course.mathilim.value})
-        unit_index = int(r.text)
+
         course_id = course.mathilim.value
         query.answer('תשובתך נשמרה')
+        r = requests.post('http://127.0.0.1:5000/getCurrentUnit',
+                          params={'chat_id': chat_id})
+        curr_unit = int(r.text)
         query.delete_message()
 
     elif query.data == "mamshikhim":
         r = requests.post('http://127.0.0.1:5000/userNewCourse',
                           params={'chat_id': query.from_user.id, 'course_id': course.mamshikhim.value})
 
-        unit_index = int(r.text)
+
         course_id = course.mamshikhim.value
         query.answer('תשובתך נשמרה')
+        r = requests.post('http://127.0.0.1:5000/getCurrentUnit',
+                          params={'chat_id': chat_id})
+        curr_unit = int(r.text)
         query.delete_message()
     elif query.data == "refuit":
         r = requests.post('http://127.0.0.1:5000/userNewCourse',
@@ -402,6 +409,9 @@ def button(update: Update, context: CallbackContext) -> None:
         unit_index = int(r.text)
         course_id = course.refuit.value
         query.answer('תשובתך נשמרה')
+        r = requests.post('http://127.0.0.1:5000/getCurrentUnit',
+                          params={'chat_id': chat_id})
+        curr_unit = int(r.text)
         query.delete_message()
     if curr_unit > 0:
         reply_keyboard = [['/resume', '/startAgain']]
@@ -413,7 +423,7 @@ def button(update: Update, context: CallbackContext) -> None:
         if query.data == "talkingWithMadrasa":
             handlingAudioSegment(chat_id, curr_unit)
         else:
-            handlingSegments(chat_id, unit_index, course_id)
+            handlingSegments(chat_id, curr_unit, course_id)
 
 
 def voice_handler(update, context):
