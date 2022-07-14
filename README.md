@@ -4,6 +4,8 @@ Students: Sofian Falah, Lena Helo
 
 Website: https://sofianfa3.wixsite.com/madrasaarabicbot
 
+Bot handle on telegram: @MadrasaArabicBot
+
 Organization: Madrasa - Learning to communicate
 
 Project title: Development of a Telegram Bot for practicing spoken Arabic!
