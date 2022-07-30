@@ -1,16 +1,16 @@
 <h3>Technion Industrial Project 234313</h3>
 
-Students: Sofian Falah, Lena Helo
+<b>Students:</b> Sofian Falah, Lena Helo
 
-Website: https://sofianfa3.wixsite.com/madrasaarabicbot
+<b>Website:</b> https://sofianfa3.wixsite.com/madrasaarabicbot
 
-Bot handle on telegram: @MadrasaArabicBot
+<b>Bot handle on telegram:</b> @MadrasaArabicBot
 
-Organization: Madrasa - Learning to communicate
+<b>Organization:</b> Madrasa - Learning to communicate
 
-Project title: Development of a Telegram Bot for practicing spoken Arabic!
+<b>Project title:</b> Development of a Telegram Bot for practicing spoken Arabic!
  
-Project description: Madrasa is a social organization that teaches Arabic for free through 
+<b>Project description:</b> Madrasa is a social organization that teaches Arabic for free through 
 technology and communal learning. Over 100,000 registered Israeli students are learning to 
 communicate via Madrasa’s online courses, social media channels, and study groups throughout 
 the country. We also promote the learning and integration of spoken Arabic in leading arenas of 
