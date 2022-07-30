@@ -1,4 +1,4 @@
-#Technion Industrial Project 234313
+<h3>Technion Industrial Project 234313</h3>
 
 Students: Sofian Falah, Lena Helo
 
