@@ -42,9 +42,9 @@ Recommended pre-requisite courses:
 
 • 236817 Seminar in Natural Language Processing (Recommended)
 
-Topography of our project:
-1) Telegram Bot: Connecting point between the Flask server and the user. It handles requests from users through the bot and contacts the Flask app using HTTP routes in case an access to the database is needed.
+<b>Topography of our project:</b>
+1) <b>Telegram Bot:</b> Connecting point between the Flask server and the user. It handles requests from users through the bot and contacts the Flask app using HTTP routes in case an access to the database is needed.
 
-2) Flask Application: Initiates and manages the database using SQL-alchemy, Provides services of GET/POST/DELETE requests to the telegram bot.
+2) <b>Flask Application:</b> Initiates and manages the database using SQL-alchemy, Provides services of GET/POST/DELETE requests to the telegram bot.
 
-3) PostgreSQL Database: Table of users, their IDs and their progress. Table of feedbacks from users. Table of messages to delete, in order to spare the user from the saved voice messages on their phone, that get sent by the bot.
+3) <b>PostgreSQL Database:</b> Table of users, their IDs and their progress. Table of feedbacks from users. Table of messages to delete, in order to spare the user from the saved voice messages on their phone, that get sent by the bot.
