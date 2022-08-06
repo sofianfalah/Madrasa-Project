@@ -41,3 +41,10 @@ Recommended pre-requisite courses:
 • 236299 Intro. to Natural Language Processing (Recommended)
 
 • 236817 Seminar in Natural Language Processing (Recommended)
+
+Topography of our project:
+1) Telegram Bot: Connecting point between the Flask server and the user. It handles requests from users through the bot and contacts the Flask app using HTTP routes in case an access to the database is needed.
+
+2) Flask Application: Initiates and manages the database using SQL-alchemy, Provides services of GET/POST/DELETE requests to the telegram bot.
+
+3) PostgreSQL Database: Table of users, their IDs and their progress. Table of feedbacks from users. Table of messages to delete, in order to spare the user from the saved voice messages on their phone, that get sent by the bot.
