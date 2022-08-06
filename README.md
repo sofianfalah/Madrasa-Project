@@ -6,7 +6,7 @@
 
 <b>Bot handle on telegram:</b> @MadrasaArabicBot
 
-<b>Organization:</b> Madrasa - Learning to communicate
+<b>Organization:</b> <a href="https://madrasafree.com/">Madrasa - Learning to communicate</a>
 
 <b>Project title:</b> Development of a Telegram Bot for practicing spoken Arabic!
  
